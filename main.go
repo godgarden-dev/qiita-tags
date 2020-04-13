@@ -50,13 +50,13 @@ func main() {
 
 	file, err := os.OpenFile("/tmp/qiita_tags.csv", os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
-		log.Fatal("Error:", err)
+		log.Fatal(err)
 	}
 	defer file.Close()
 
 	err = file.Truncate(0)
 	if err != nil {
-		log.Fatal("Error:", err)
+		log.Fatal(err)
 	}
 
 	if err := gocsv.MarshalFile(&tags, file); err != nil {
