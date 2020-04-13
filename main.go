@@ -8,15 +8,17 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"strconv"
 
+	"github.com/gocarina/gocsv"
 	"github.com/pkg/errors"
 )
 
 const (
 	V2Endpoint     string = "https://qiita.com/api/v2"
-	DefaultPerPage int    = 2
+	DefaultPerPage int    = 100
 )
 
 type Client struct {
@@ -25,13 +27,15 @@ type Client struct {
 }
 
 type Tag struct {
-	FollowersCount int    `json:"followers_count"`
-	IconURL        string `json:"icon_url"`
-	ID             string `json:"id"`
-	ItemsCount     int    `json:"items_count"`
+	FollowersCount int    `json:"followers_count" csv:"followers_count"`
+	IconURL        string `json:"icon_url" csv:"icon_url"`
+	ID             string `json:"id" csv:"id"`
+	ItemsCount     int    `json:"items_count" csv:"items_count"`
 }
 
 func main() {
+
+	log.Println("INFO:START")
 
 	client, err := NewClient(V2Endpoint)
 	if err != nil {
@@ -44,9 +48,22 @@ func main() {
 		log.Fatal(err)
 	}
 
-	for _, tag := range tags {
-		fmt.Println(fmt.Sprintf("%s, %d", tag.ID, tag.FollowersCount))
+	file, err := os.OpenFile("/tmp/qiita_tags.csv", os.O_WRONLY|os.O_CREATE, 0600)
+	if err != nil {
+		log.Fatal("Error:", err)
 	}
+	defer file.Close()
+
+	err = file.Truncate(0)
+	if err != nil {
+		log.Fatal("Error:", err)
+	}
+
+	if err := gocsv.MarshalFile(&tags, file); err != nil {
+		log.Fatal(err)
+	}
+
+	log.Println("INFO:END")
 }
 
 func NewClient(urlStr string) (*Client, error) {
@@ -67,7 +84,8 @@ func (c *Client) newRequest(ctx context.Context, method, spath string, body io.R
 	}
 
 	req = req.WithContext(ctx)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Add("Authorization", "Bearer your-access-token")
 
 	return req, nil
 }
@@ -99,10 +117,11 @@ func (c *Client) listTags(ctx context.Context) ([]Tag, error) {
 		return nil, err
 	}
 
-	//totalCount, _ := strconv.Atoi(res.Header.Get("Total-Count"))
-	totalCount := 10
+	totalCount, _ := strconv.Atoi(res.Header.Get("Total-Count"))
+	fmt.Println(totalCount)
+	//totalCount := 100
+
 	maxPage := int(totalCount / DefaultPerPage)
-	fmt.Println(fmt.Sprintf("%d/%d", totalCount, DefaultPerPage))
 	fmt.Println(maxPage)
 
 	for page := 2; page <= maxPage; page++ {
@@ -123,6 +142,7 @@ func (c *Client) listTags(ctx context.Context) ([]Tag, error) {
 			return nil, err
 		}
 
+		fmt.Println(res.StatusCode)
 		if res.StatusCode != 200 {
 			fmt.Println("break!!")
 			break
