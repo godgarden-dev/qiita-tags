@@ -1,3 +1,3 @@
-# qiita-api-v2
+# qiita-tag-crawler
 
-[Qiita API](https://qiita.com/api/v2/docs) から Tagsを全件取得する
+[Qiita API](https://qiita.com/api/v2/docs) から Tagを全件取得してCSVに保存する
