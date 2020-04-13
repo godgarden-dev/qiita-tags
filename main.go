@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -107,7 +106,6 @@ func (c *Client) listTags(ctx context.Context) ([]Tag, error) {
 		return nil, err
 	}
 
-	fmt.Println(res.StatusCode)
 	if res.StatusCode != 200 {
 		return nil, nil
 	}
@@ -118,11 +116,8 @@ func (c *Client) listTags(ctx context.Context) ([]Tag, error) {
 	}
 
 	totalCount, _ := strconv.Atoi(res.Header.Get("Total-Count"))
-	fmt.Println(totalCount)
-	//totalCount := 100
 
 	maxPage := int(totalCount / DefaultPerPage)
-	fmt.Println(maxPage)
 
 	for page := 2; page <= maxPage; page++ {
 		req, err := c.newRequest(ctx, "GET", "/tags", nil)
@@ -142,9 +137,8 @@ func (c *Client) listTags(ctx context.Context) ([]Tag, error) {
 			return nil, err
 		}
 
-		fmt.Println(res.StatusCode)
 		if res.StatusCode != 200 {
-			fmt.Println("break!!")
+			log.Println("break!!")
 			break
 		}
 
