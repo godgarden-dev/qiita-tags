@@ -1,4 +1,4 @@
-module github.com/kancers/qiita-api-v2
+module github.com/kancers/qiita-tag-crawler
 
 go 1.13
 
