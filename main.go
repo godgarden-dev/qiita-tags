@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"github.com/gocarina/gocsv"
 	"io"
 	"log"
 	"net/http"
@@ -11,12 +13,11 @@ import (
 	"path"
 	"strconv"
 
-	"github.com/gocarina/gocsv"
 	"github.com/pkg/errors"
 )
 
 const (
-	V2Endpoint     string = "https://qiita.com/api/v2"
+	Endpoint       string = "https://qiita.com/api/v2"
 	DefaultPerPage int    = 100
 )
 
@@ -36,7 +37,7 @@ func main() {
 
 	log.Println("INFO:START")
 
-	client, err := NewClient(V2Endpoint)
+	client, err := NewClient(Endpoint)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -47,18 +48,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	file, err := os.OpenFile("/tmp/qiita_tags.csv", os.O_WRONLY|os.O_CREATE, 0600)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer file.Close()
-
-	err = file.Truncate(0)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if err := gocsv.MarshalFile(&tags, file); err != nil {
+	if err := output(tags); err != nil {
 		log.Fatal(err)
 	}
 
@@ -84,18 +74,20 @@ func (c *Client) newRequest(ctx context.Context, method, spath string, body io.R
 
 	req = req.WithContext(ctx)
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Add("Authorization", "Bearer your-access-token")
+	req.Header.Add("Authorization", "Bearer 0baac375a105d668bfd515b8b6c98ca585a5ec44")
 
 	return req, nil
 }
 
 func (c *Client) listTags(ctx context.Context) ([]Tag, error) {
+	page := 1
+
 	req, err := c.newRequest(ctx, "GET", "/tags", nil)
 	if err != nil {
 		return nil, err
 	}
 	q := url.Values{
-		"page":     []string{"1"},
+		"page":     []string{strconv.Itoa(page)},
 		"per_page": []string{strconv.Itoa(DefaultPerPage)},
 		"sort":     []string{"count"},
 	}
@@ -107,6 +99,7 @@ func (c *Client) listTags(ctx context.Context) ([]Tag, error) {
 	}
 
 	if res.StatusCode != 200 {
+		log.Printf("status:%d", res.StatusCode)
 		return nil, nil
 	}
 
@@ -116,20 +109,16 @@ func (c *Client) listTags(ctx context.Context) ([]Tag, error) {
 	}
 
 	totalCount, _ := strconv.Atoi(res.Header.Get("Total-Count"))
-
 	maxPage := int(totalCount / DefaultPerPage)
 
-	for page := 2; page <= maxPage; page++ {
+	for currentPage := page + 1; currentPage <= maxPage; currentPage++ {
+		fmt.Println(currentPage)
 		req, err := c.newRequest(ctx, "GET", "/tags", nil)
 		if err != nil {
 			return nil, err
 		}
 
-		q := url.Values{
-			"page":     []string{strconv.Itoa(page)},
-			"per_page": []string{strconv.Itoa(DefaultPerPage)},
-			"sort":     []string{"count"},
-		}
+		q.Set("page", strconv.Itoa(currentPage+1))
 		req.URL.RawQuery = q.Encode()
 
 		res, err := c.HTTPClient.Do(req)
@@ -138,7 +127,7 @@ func (c *Client) listTags(ctx context.Context) ([]Tag, error) {
 		}
 
 		if res.StatusCode != 200 {
-			log.Println("break!!")
+			log.Printf("break!! status:%d", res.StatusCode)
 			break
 		}
 
@@ -146,6 +135,7 @@ func (c *Client) listTags(ctx context.Context) ([]Tag, error) {
 		if err := decodeBody(res, &tags); err != nil {
 			return nil, err
 		}
+
 		tagList = append(tagList, tags...)
 	}
 
@@ -156,4 +146,22 @@ func decodeBody(resp *http.Response, out interface{}) error {
 	defer resp.Body.Close()
 	decoder := json.NewDecoder(resp.Body)
 	return decoder.Decode(out)
+}
+
+func output(tags []Tag) error {
+	file, err := os.OpenFile("/tmp/qiita_tags.csv", os.O_WRONLY|os.O_CREATE, 0600)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	err = file.Truncate(0)
+	if err != nil {
+		return err
+	}
+
+	if err := gocsv.MarshalFile(&tags, file); err != nil {
+		log.Fatal(err)
+	}
+	return nil
 }
