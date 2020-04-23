@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/gocarina/gocsv"
 	"io"
 	"log"
@@ -112,7 +111,6 @@ func (c *Client) listTags(ctx context.Context) ([]Tag, error) {
 	maxPage := int(totalCount / DefaultPerPage)
 
 	for currentPage := page + 1; currentPage <= maxPage; currentPage++ {
-		fmt.Println(currentPage)
 		req, err := c.newRequest(ctx, "GET", "/tags", nil)
 		if err != nil {
 			return nil, err
