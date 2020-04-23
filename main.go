@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/gocarina/gocsv"
 	"io"
 	"log"
@@ -73,7 +74,7 @@ func (c *Client) newRequest(ctx context.Context, method, spath string, body io.R
 
 	req = req.WithContext(ctx)
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Add("Authorization", "Bearer 0baac375a105d668bfd515b8b6c98ca585a5ec44")
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", os.Getenv("access_token")))
 
 	return req, nil
 }
